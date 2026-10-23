@@ -4,17 +4,37 @@
 #include <vector>
 #include <type_traits>
 #include <stdexcept>
+#include <concepts>
+#include <fstream>
 
 template<typename T>
-concept arithmetic = std::is_arithmetic<T>;
+concept arithmetic = std::is_arithmetic<T>::value;
 
+namespace numerical {
 template<arithmetic T>
 class Matrix {
 private:
     size_t n, m;
     std::vector<T> v;
-    size_t get_ind(size_t i, size_t j) { return i * m + j; }
+    size_t get_ind(size_t i, size_t j) const { return i * m + j; }
 public:
+    void read_from_file(const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            throw std::runtime_error("Cannot open file: " + filename);
+        }
+        size_t rows, cols;
+        if (!(file >> rows >> cols)) throw std::runtime_error("Cannot read matrix dimensions");
+        Matrix temp(rows, cols);
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                if (!(file >> temp[i, j])) {
+                    throw std::runtime_error("Cannot read matrix element");
+                }
+            }
+        }
+        *this = std::move(temp);
+    }
     Matrix() = default;
     Matrix(size_t n_, size_t m_) : n(n_), m(m_), v(n_ * m_) {}
     T& operator[] (size_t i, size_t j) { return v[get_ind(i, j)]; }
@@ -100,4 +120,7 @@ public:
         res /= val;
         return res;
     }
+    size_t rows() const noexcept { return n; }
+    size_t cols() const noexcept { return m; }
 };
+}
